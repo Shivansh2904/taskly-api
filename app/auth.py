@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime, timedelta, UTC
 from jose import jwt
 from passlib.context import CryptContext
@@ -22,7 +23,9 @@ def create_access_token(user_id: int) -> str:
 def create_refresh_token(user_id: int) -> tuple[str, datetime]:
     exp = datetime.now(UTC) + timedelta(days=settings.refresh_token_expire_days)
     token = jwt.encode(
-        {"sub": str(user_id), "exp": exp}, settings.jwt_refresh_secret, algorithm="HS256"
+        {"sub": str(user_id), "exp": exp, "jti": str(uuid.uuid4())},
+        settings.jwt_refresh_secret,
+        algorithm="HS256",
     )
     return token, exp
 

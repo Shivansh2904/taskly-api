@@ -27,7 +27,7 @@ def register(body: schemas.UserCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=schemas.TokenResponse)
-def login(body: schemas.UserCreate, db: Session = Depends(get_db)):
+def login(body: schemas.LoginRequest, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == body.email).first()
     if not user or not verify_password(body.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -46,7 +46,10 @@ def refresh(body: schemas.RefreshRequest, db: Session = Depends(get_db)):
         .filter(models.RefreshToken.token == body.refresh_token)
         .first()
     )
-    if not stored or stored.expires_at.replace(tzinfo=UTC) < datetime.now(UTC):
+    expires = stored.expires_at if stored else None
+    if expires is not None and expires.tzinfo is None:
+        expires = expires.replace(tzinfo=UTC)
+    if not stored or expires < datetime.now(UTC):
         raise HTTPException(status_code=401, detail="Refresh token expired or revoked")
 
     db.delete(stored)
