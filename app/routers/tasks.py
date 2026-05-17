@@ -1,3 +1,4 @@
+from datetime import datetime, UTC
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -12,6 +13,7 @@ def list_tasks(
     project_id: int,
     status: models.TaskStatus | None = None,
     priority: models.TaskPriority | None = None,
+    overdue: bool = False,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -21,6 +23,11 @@ def list_tasks(
         q = q.filter(models.Task.status == status)
     if priority:
         q = q.filter(models.Task.priority == priority)
+    if overdue:
+        q = q.filter(
+            models.Task.due_date < datetime.now(UTC),
+            models.Task.status != models.TaskStatus.done,
+        )
     return q.all()
 
 
@@ -37,6 +44,7 @@ def create_task(
         description=body.description,
         status=body.status,
         priority=body.priority,
+        due_date=body.due_date,
         project_id=project_id,
     )
     if body.tags:

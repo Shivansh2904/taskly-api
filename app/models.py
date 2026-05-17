@@ -88,6 +88,7 @@ class Task(Base):
     priority: Mapped[TaskPriority] = mapped_column(
         Enum(TaskPriority), default=TaskPriority.medium
     )
+    due_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)

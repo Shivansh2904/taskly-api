@@ -58,6 +58,7 @@ class TaskCreate(BaseModel):
     description: str | None = None
     status: TaskStatus = TaskStatus.todo
     priority: TaskPriority = TaskPriority.medium
+    due_date: datetime | None = None
     tags: list[str] = []
 
 
@@ -66,6 +67,7 @@ class TaskUpdate(BaseModel):
     description: str | None = None
     status: TaskStatus | None = None
     priority: TaskPriority | None = None
+    due_date: datetime | None = None
     tags: list[str] | None = None
 
 
@@ -81,6 +83,7 @@ class TaskResponse(BaseModel):
     description: str | None
     status: TaskStatus
     priority: TaskPriority
+    due_date: datetime | None
     project_id: int
     created_at: datetime
     updated_at: datetime
