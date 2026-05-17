@@ -1,0 +1,41 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: taskly_test
+          POSTGRES_USER: taskly
+          POSTGRES_PASSWORD: taskly_dev
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - name: Type check
+        run: npx tsc --noEmit
+      - name: Run tests
+        run: npm test
+        env:
+          DATABASE_URL: postgresql://taskly:taskly_dev@localhost:5432/taskly_test
+          JWT_SECRET: test_secret_at_least_32_characters_long_here
+          JWT_REFRESH_SECRET: test_refresh_secret_32_characters_long
+          NODE_ENV: test
