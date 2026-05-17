@@ -1,29 +1,31 @@
-version: '3.8'
 services:
-  postgres:
+  db:
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: taskly
       POSTGRES_USER: taskly
-      POSTGRES_PASSWORD: taskly_dev
+      POSTGRES_PASSWORD: taskly
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U taskly"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
       retries: 5
 
   api:
     build: .
     ports:
-      - "3000:3000"
-    env_file: .env
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://taskly:taskly@db:5432/taskly
+      JWT_SECRET: change-me-in-production
+      JWT_REFRESH_SECRET: change-me-in-production-refresh
     depends_on:
-      postgres:
+      db:
         condition: service_healthy
 
 volumes:
-  postgres_data:
+  pgdata:

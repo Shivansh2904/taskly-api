@@ -1,293 +1,173 @@
 # Taskly API
 
-![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)
-![Fastify](https://img.shields.io/badge/Fastify-000000?style=flat&logo=fastify&logoColor=white)
-![Prisma](https://img.shields.io/badge/Prisma-2D3748?style=flat&logo=prisma&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat&logo=postgresql&logoColor=white)
-![Vitest](https://img.shields.io/badge/Vitest-6E9F18?style=flat&logo=vitest&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=flat&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=flat&logo=fastapi&logoColor=white)
+![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0-red?style=flat)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat&logo=postgresql&logoColor=white)
+![pytest](https://img.shields.io/badge/pytest-8.3-0A9EDC?style=flat&logo=pytest&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 ![CI](https://img.shields.io/github/actions/workflow/status/Shivansh2904/taskly-api/ci.yml?label=CI)
 
-Production-ready task management REST API — JWT auth with refresh token rotation, typed request validation, Docker-ready.
+> REST API for a project and task management system — JWT auth with refresh token rotation, projects, tasks with status/priority filtering, and tag management. Built with FastAPI, SQLAlchemy 2, and PostgreSQL.
 
 ---
 
-## Features
+## What it does
 
-- **JWT access tokens** (15 min expiry) + **refresh tokens** (7 day expiry) with rotation on every refresh
-- **Projects and tasks** with status, priority, and tag support
-- **Ownership enforcement** — users can only access and modify their own resources
-- **Pagination and filtering** — query tasks by status, priority, tag, or assignee
-- **Zod validation** on all request bodies and query parameters with structured error responses
-- **Prisma ORM** with full type safety and migration support
-- **Docker Compose** setup with PostgreSQL for zero-friction local development
-- **GitHub Actions CI** running lint, type-check, and tests on every push and pull request
+Taskly is a backend API that lets users manage projects and tasks. You register, get a short-lived access token and a rotating refresh token, then create projects and fill them with tasks. Each task has a status (`todo`, `in_progress`, `done`), a priority (`low`, `medium`, `high`), and optional tags.
 
----
+The main things it demonstrates:
 
-## API Endpoints
-
-| Method   | Path                             | Auth     | Description                                      |
-|----------|----------------------------------|----------|--------------------------------------------------|
-| `POST`   | `/auth/register`                 | Public   | Register a new user account                      |
-| `POST`   | `/auth/login`                    | Public   | Log in and receive access + refresh tokens       |
-| `POST`   | `/auth/refresh`                  | Public   | Exchange a refresh token for a new token pair    |
-| `POST`   | `/auth/logout`                   | Bearer   | Revoke the current refresh token                 |
-| `GET`    | `/auth/me`                       | Bearer   | Get the authenticated user's profile             |
-| `GET`    | `/projects`                      | Bearer   | List all projects owned by the current user      |
-| `POST`   | `/projects`                      | Bearer   | Create a new project                             |
-| `GET`    | `/projects/:id`                  | Bearer   | Get a single project by ID                       |
-| `PATCH`  | `/projects/:id`                  | Bearer   | Update a project's name or description           |
-| `DELETE` | `/projects/:id`                  | Bearer   | Delete a project and all its tasks               |
-| `GET`    | `/projects/:id/tasks`            | Bearer   | List tasks in a project (supports filtering)     |
-| `POST`   | `/projects/:id/tasks`            | Bearer   | Create a new task inside a project               |
-| `GET`    | `/tasks/:id`                     | Bearer   | Get a single task by ID                          |
-| `PATCH`  | `/tasks/:id`                     | Bearer   | Update task fields (status, priority, tags, etc) |
-| `DELETE` | `/tasks/:id`                     | Bearer   | Delete a task                                    |
-| `GET`    | `/tasks`                         | Bearer   | List all tasks for the current user              |
-| `GET`    | `/tags`                          | Bearer   | List all tags used by the current user           |
-
-### Query Parameters for Task Listing
-
-| Parameter    | Type     | Example              | Description                          |
-|--------------|----------|----------------------|--------------------------------------|
-| `status`     | string   | `?status=TODO`       | Filter by status (TODO, IN_PROGRESS, DONE, CANCELLED) |
-| `priority`   | string   | `?priority=HIGH`     | Filter by priority (LOW, MEDIUM, HIGH, URGENT) |
-| `tag`        | string   | `?tag=backend`       | Filter by tag name                   |
-| `page`       | number   | `?page=2`            | Page number (default: 1)             |
-| `limit`      | number   | `?limit=20`          | Results per page (default: 10, max: 100) |
+- **JWT auth with refresh token rotation** — access tokens expire after 15 minutes; refresh tokens are single-use and rotated on every call, so a stolen token cannot be reused
+- **SQLAlchemy 2 with mapped types** — uses the modern `Mapped[T]` / `mapped_column()` syntax instead of the older declarative style
+- **Alembic migrations** — database schema is versioned; the initial migration creates all six tables
+- **Pydantic v2 schemas** — request validation and response serialization are fully typed; the `UserCreate` validator enforces minimum password length at the schema level
+- **Ownership checks** — every project and task read/write verifies the calling user owns the resource before touching the database
+- **pytest with SQLite** — tests run against an in-memory SQLite database with no external dependencies, so CI works without a running Postgres instance
 
 ---
 
-## Quick Start
+## Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Framework | FastAPI 0.115 |
+| ORM | SQLAlchemy 2.0 (async-compatible mapped columns) |
+| Migrations | Alembic |
+| Database | PostgreSQL 16 (SQLite for tests) |
+| Auth | python-jose (HS256 JWT) + passlib bcrypt |
+| Validation | Pydantic v2 |
+| Tests | pytest + httpx TestClient |
+| Container | Docker + docker-compose |
+
+---
+
+## API
+
+### Auth
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/auth/register` | Create account, returns access + refresh token |
+| `POST` | `/auth/login` | Login, returns access + refresh token |
+| `POST` | `/auth/refresh` | Exchange refresh token for new token pair (old token is invalidated) |
+
+### Projects
+
+All project routes require `Authorization: Bearer <access_token>`.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/projects` | List your projects (paginated) |
+| `POST` | `/projects` | Create a project |
+| `GET` | `/projects/{id}` | Get a project (includes task count) |
+| `PATCH` | `/projects/{id}` | Update name or description |
+| `DELETE` | `/projects/{id}` | Delete project and all its tasks |
+
+### Tasks
+
+All task routes require the calling user to own the parent project.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/projects/{id}/tasks` | List tasks, filter by `?status=` or `?priority=` |
+| `POST` | `/projects/{id}/tasks` | Create a task with optional tags |
+| `GET` | `/projects/{id}/tasks/{tid}` | Get a task |
+| `PATCH` | `/projects/{id}/tasks/{tid}` | Update title, status, priority, tags |
+| `DELETE` | `/projects/{id}/tasks/{tid}` | Delete a task |
+
+---
+
+## Running locally
+
+**With Docker (recommended):**
 
 ```bash
-git clone https://github.com/Shivansh2904/taskly-api
-cd taskly-api && cp .env.example .env
-docker-compose up -d postgres
-npm install && npm run db:migrate && npm run dev
+git clone https://github.com/Shivansh2904/taskly-api.git
+cd taskly-api
+docker compose up
+# API is available at http://localhost:8000
+# Swagger docs at http://localhost:8000/docs
 ```
 
-The API will be available at `http://localhost:3000`.
+**Without Docker:**
 
-### Environment Variables
-
-Copy `.env.example` to `.env` and fill in the values:
-
-```env
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/taskly"
-JWT_ACCESS_SECRET="your-access-secret-here"
-JWT_REFRESH_SECRET="your-refresh-secret-here"
-JWT_ACCESS_EXPIRES_IN="15m"
-JWT_REFRESH_EXPIRES_IN="7d"
-PORT=3000
-NODE_ENV=development
+```bash
+# Requires Python 3.12+ and a running PostgreSQL instance
+git clone https://github.com/Shivansh2904/taskly-api.git
+cd taskly-api
+pip install -r requirements.txt
+cp .env.example .env   # edit DATABASE_URL, JWT_SECRET, JWT_REFRESH_SECRET
+uvicorn app.main:app --reload
 ```
 
 ---
 
-## Example curl Flows
-
-### Register and log in
+## Example usage
 
 ```bash
-# Register a new account
-curl -s -X POST http://localhost:3000/auth/register \
+# Register
+curl -X POST http://localhost:8000/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"email":"dev@example.com","password":"s3cur3pass","name":"Dev User"}' | jq
+  -d '{"email": "you@example.com", "password": "hunter2hunter2"}'
 
-# Log in and save tokens
-TOKENS=$(curl -s -X POST http://localhost:3000/auth/login \
+# Create a project
+curl -X POST http://localhost:8000/projects \
+  -H "Authorization: Bearer <access_token>" \
   -H "Content-Type: application/json" \
-  -d '{"email":"dev@example.com","password":"s3cur3pass"}')
+  -d '{"name": "Website relaunch", "description": "Q3 redesign"}'
 
-ACCESS=$(echo $TOKENS | jq -r '.accessToken')
-REFRESH=$(echo $TOKENS | jq -r '.refreshToken')
-```
-
-### Create a project
-
-```bash
-PROJECT=$(curl -s -X POST http://localhost:3000/projects \
-  -H "Authorization: Bearer $ACCESS" \
+# Add a task
+curl -X POST http://localhost:8000/projects/1/tasks \
+  -H "Authorization: Bearer <access_token>" \
   -H "Content-Type: application/json" \
-  -d '{"name":"My First Project","description":"Getting things done"}')
+  -d '{"title": "Update homepage copy", "priority": "high", "tags": ["content", "frontend"]}'
 
-PROJECT_ID=$(echo $PROJECT | jq -r '.id')
-echo "Created project: $PROJECT_ID"
-```
-
-### Create a task
-
-```bash
-curl -s -X POST http://localhost:3000/projects/$PROJECT_ID/tasks \
-  -H "Authorization: Bearer $ACCESS" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "title": "Implement authentication",
-    "description": "Add JWT-based login flow",
-    "status": "TODO",
-    "priority": "HIGH",
-    "tags": ["backend", "auth"]
-  }' | jq
-```
-
-### List tasks with a status filter
-
-```bash
-curl -s "http://localhost:3000/projects/$PROJECT_ID/tasks?status=TODO&priority=HIGH&page=1&limit=10" \
-  -H "Authorization: Bearer $ACCESS" | jq
-```
-
-### Refresh tokens
-
-```bash
-NEW_TOKENS=$(curl -s -X POST http://localhost:3000/auth/refresh \
-  -H "Content-Type: application/json" \
-  -d "{\"refreshToken\":\"$REFRESH\"}")
-
-ACCESS=$(echo $NEW_TOKENS | jq -r '.accessToken')
-REFRESH=$(echo $NEW_TOKENS | jq -r '.refreshToken')
+# List tasks filtered by status
+curl "http://localhost:8000/projects/1/tasks?status=todo" \
+  -H "Authorization: Bearer <access_token>"
 ```
 
 ---
 
-## Data Model
+## Running tests
 
-```
-User
- ├── id          UUID (PK)
- ├── email       String (unique)
- ├── name        String
- ├── password    String (bcrypt hash)
- ├── createdAt   DateTime
- └── projects    Project[]
-      ├── id          UUID (PK)
-      ├── name        String
-      ├── description String?
-      ├── ownerId     UUID (FK → User)
-      ├── createdAt   DateTime
-      ├── updatedAt   DateTime
-      └── tasks       Task[]
-           ├── id          UUID (PK)
-           ├── title       String
-           ├── description String?
-           ├── status      Enum (TODO | IN_PROGRESS | DONE | CANCELLED)
-           ├── priority    Enum (LOW | MEDIUM | HIGH | URGENT)
-           ├── projectId   UUID (FK → Project)
-           ├── ownerId     UUID (FK → User)
-           ├── dueDate     DateTime?
-           ├── createdAt   DateTime
-           ├── updatedAt   DateTime
-           └── tags        Tag[]  (many-to-many)
-                ├── id    UUID (PK)
-                └── name  String (unique per user)
-```
-
-### Relationships
-
-- A **User** owns many **Projects** and many **Tasks**.
-- A **Project** belongs to one **User** and contains many **Tasks**.
-- A **Task** belongs to one **Project** and one **User** (owner).
-- **Tags** are many-to-many with **Tasks** and are scoped to the owning user.
-- Deleting a **Project** cascades to delete all its **Tasks**.
-
----
-
-## Testing
+Tests use SQLite so no database setup is needed:
 
 ```bash
-npm test
-```
-
-Runs the full test suite with [Vitest](https://vitest.dev/). Tests cover:
-
-- Auth flows (register, login, refresh, logout, invalid tokens)
-- Project CRUD and ownership enforcement
-- Task CRUD, filtering, and pagination
-- Zod validation error responses
-- Token expiry and rotation edge cases
-
-To run tests in watch mode:
-
-```bash
-npm run test:watch
-```
-
-To generate a coverage report:
-
-```bash
-npm run test:coverage
+pip install -r requirements.txt -r requirements-dev.txt
+pytest tests/ -v
 ```
 
 ---
 
-## Project Structure
+## Project structure
 
 ```
-taskly-api/
-├── prisma/
-│   ├── schema.prisma          # Database schema and models
-│   └── migrations/            # Auto-generated migration files
-├── src/
-│   ├── config/
-│   │   └── env.ts             # Validated environment config (Zod)
-│   ├── plugins/
-│   │   ├── auth.ts            # JWT plugin and Bearer hook
-│   │   └── prisma.ts          # Prisma client plugin
-│   ├── routes/
-│   │   ├── auth/
-│   │   │   ├── auth.routes.ts
-│   │   │   ├── auth.schema.ts
-│   │   │   └── auth.service.ts
-│   │   ├── projects/
-│   │   │   ├── projects.routes.ts
-│   │   │   ├── projects.schema.ts
-│   │   │   └── projects.service.ts
-│   │   └── tasks/
-│   │       ├── tasks.routes.ts
-│   │       ├── tasks.schema.ts
-│   │       └── tasks.service.ts
-│   ├── lib/
-│   │   ├── jwt.ts             # Token sign / verify helpers
-│   │   ├── hash.ts            # bcrypt helpers
-│   │   └── errors.ts          # Typed HTTP error helpers
-│   ├── types/
-│   │   └── index.ts           # Shared TypeScript types
-│   └── app.ts                 # Fastify app factory
-├── test/
-│   ├── auth.test.ts
-│   ├── projects.test.ts
-│   └── tasks.test.ts
-├── .env.example
-├── .github/
-│   └── workflows/
-│       └── ci.yml
-├── docker-compose.yml
-├── package.json
-├── tsconfig.json
-└── vitest.config.ts
-```
-
----
-
-## Docker
-
-Start the full stack (API + PostgreSQL):
-
-```bash
-docker-compose up --build
-```
-
-Start only the database for local development:
-
-```bash
-docker-compose up -d postgres
+app/
+  main.py          FastAPI app, middleware, router registration
+  config.py        pydantic-settings env validation
+  database.py      SQLAlchemy engine and session factory
+  models.py        ORM models (User, Project, Task, Tag, RefreshToken)
+  schemas.py       Pydantic request/response models
+  auth.py          JWT encode/decode, bcrypt hashing
+  routers/
+    auth.py        /auth routes
+    projects.py    /projects routes + get_current_user dependency
+    tasks.py       /projects/{id}/tasks routes
+alembic/
+  env.py           Alembic migration runner
+  versions/
+    001_initial_schema.py   Creates all tables
+tests/
+  conftest.py      TestClient + SQLite database fixture
+  test_auth.py     Auth endpoint tests
+  test_projects.py Project endpoint tests
 ```
 
 ---
 
 ## License
 
-[MIT](./LICENSE) — Shivansh Goyal
+MIT — Copyright (c) 2025 Shivansh Mishra
