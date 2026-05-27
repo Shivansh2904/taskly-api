@@ -52,6 +52,7 @@ The main things it demonstrates:
 | `POST` | `/auth/register` | Create account, returns access + refresh token |
 | `POST` | `/auth/login` | Login, returns access + refresh token |
 | `POST` | `/auth/refresh` | Exchange refresh token for new token pair (old token is invalidated) |
+| `GET` | `/auth/me` | Get the currently authenticated user |
 
 ### Projects
 
@@ -64,6 +65,7 @@ All project routes require `Authorization: Bearer <access_token>`.
 | `GET` | `/projects/{id}` | Get a project (includes task count) |
 | `PATCH` | `/projects/{id}` | Update name or description |
 | `DELETE` | `/projects/{id}` | Delete project and all its tasks |
+| `GET` | `/projects/{id}/stats` | Get task counts grouped by status, priority, and overdue |
 
 ### Tasks
 

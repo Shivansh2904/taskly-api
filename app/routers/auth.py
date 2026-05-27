@@ -11,6 +11,7 @@ from app.auth import (
     create_refresh_token,
     decode_refresh_token,
 )
+from app.routers.projects import get_current_user
 
 router = APIRouter()
 
@@ -65,3 +66,8 @@ def _issue_tokens(user: models.User, db: Session) -> schemas.TokenResponse:
     db.add(models.RefreshToken(token=refresh, user_id=user.id, expires_at=exp))
     db.commit()
     return schemas.TokenResponse(access_token=access, refresh_token=refresh)
+
+
+@router.get("/me", response_model=schemas.UserResponse)
+def get_me(current_user: models.User = Depends(get_current_user)):
+    return current_user

@@ -1,3 +1,4 @@
+from datetime import datetime, UTC
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -140,6 +141,46 @@ def delete_project(
     project = _get_owned_project(project_id, current_user.id, db)
     db.delete(project)
     db.commit()
+
+
+@router.get("/{project_id}/stats")
+def project_stats(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    project = _get_owned_project(project_id, current_user.id, db)
+
+    total = db.query(func.count(models.Task.id)).filter(models.Task.project_id == project_id).scalar()
+
+    by_status = dict(
+        db.query(models.Task.status, func.count(models.Task.id))
+        .filter(models.Task.project_id == project_id)
+        .group_by(models.Task.status)
+        .all()
+    )
+
+    by_priority = dict(
+        db.query(models.Task.priority, func.count(models.Task.id))
+        .filter(models.Task.project_id == project_id)
+        .group_by(models.Task.priority)
+        .all()
+    )
+
+    overdue = db.query(func.count(models.Task.id)).filter(
+        models.Task.project_id == project_id,
+        models.Task.due_date < datetime.now(UTC),
+        models.Task.status != models.TaskStatus.done,
+    ).scalar()
+
+    return {
+        "project_id": project_id,
+        "project_name": project.name,
+        "total_tasks": total,
+        "by_status": {str(k.value): v for k, v in by_status.items()},
+        "by_priority": {str(k.value): v for k, v in by_priority.items()},
+        "overdue": overdue,
+    }
 
 
 def _get_owned_project(project_id: int, user_id: int, db: Session) -> models.Project:

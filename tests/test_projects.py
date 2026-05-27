@@ -51,3 +51,53 @@ def test_project_not_found(client, auth_headers):
 def test_unauthorized_without_token(client):
     r = client.get("/projects")
     assert r.status_code == 403
+
+
+def test_project_stats(client, auth_headers):
+    r = client.post("/projects", json={"name": "Stats Project"}, headers=auth_headers)
+    pid = r.json()["id"]
+
+    client.post(
+        f"/projects/{pid}/tasks",
+        json={"title": "T1", "status": "todo", "priority": "low"},
+        headers=auth_headers,
+    )
+    client.post(
+        f"/projects/{pid}/tasks",
+        json={"title": "T2", "status": "in_progress", "priority": "medium"},
+        headers=auth_headers,
+    )
+    client.post(
+        f"/projects/{pid}/tasks",
+        json={"title": "T3", "status": "done", "priority": "high"},
+        headers=auth_headers,
+    )
+
+    r2 = client.get(f"/projects/{pid}/stats", headers=auth_headers)
+    assert r2.status_code == 200
+    data = r2.json()
+    assert data["project_id"] == pid
+    assert data["project_name"] == "Stats Project"
+    assert data["total_tasks"] == 3
+    assert data["by_status"]["todo"] == 1
+    assert data["by_status"]["in_progress"] == 1
+    assert data["by_status"]["done"] == 1
+    assert data["by_priority"]["low"] == 1
+    assert data["by_priority"]["medium"] == 1
+    assert data["by_priority"]["high"] == 1
+    assert data["overdue"] == 0
+
+
+def test_project_stats_unauthorized(client, auth_headers):
+    r = client.post("/projects", json={"name": "Private"}, headers=auth_headers)
+    pid = r.json()["id"]
+
+    r2 = client.post(
+        "/auth/register",
+        json={"email": "other@example.com", "password": "password123"},
+    )
+    other_token = r2.json()["access_token"]
+    other_headers = {"Authorization": f"Bearer {other_token}"}
+
+    r3 = client.get(f"/projects/{pid}/stats", headers=other_headers)
+    assert r3.status_code == 404
