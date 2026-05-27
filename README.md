@@ -83,6 +83,14 @@ All task routes require the calling user to own the parent project.
 
 ---
 
+## Deploy
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Shivansh2904/taskly-api)
+
+A `render.yaml` blueprint provisions the API + a free Postgres database, generates JWT secrets, and runs `alembic upgrade head` on every deploy.
+
+---
+
 ## Running locally
 
 **With Docker (recommended):**
