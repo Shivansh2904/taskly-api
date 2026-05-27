@@ -133,6 +133,8 @@ curl "http://localhost:8000/projects/1/tasks?status=todo" \
   -H "Authorization: Bearer <access_token>"
 ```
 
+For a full Python walkthrough (register → create project → bulk-add tasks → stats → CSV export) see [`examples/python_client.py`](examples/python_client.py).
+
 ---
 
 ## Running tests

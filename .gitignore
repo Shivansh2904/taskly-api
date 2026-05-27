@@ -1,6 +1,31 @@
-node_modules/
-dist/
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.venv/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Environment
 .env
 *.local
 .DS_Store
-prisma/migrations/
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Build
+dist/
+build/
