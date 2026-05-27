@@ -1,5 +1,8 @@
+import csv
+import io
 from datetime import datetime, UTC
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app import models, schemas
@@ -53,6 +56,72 @@ def create_task(
     db.commit()
     db.refresh(task)
     return task
+
+
+@router.post("/bulk", response_model=schemas.TaskBulkCreateResponse, status_code=201)
+def bulk_create_tasks(
+    project_id: int,
+    body: schemas.TaskBulkCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Create up to 100 tasks in a single request."""
+    _get_owned_project(project_id, current_user.id, db)
+    created = []
+    for t in body.tasks:
+        task = models.Task(
+            title=t.title,
+            description=t.description,
+            status=t.status,
+            priority=t.priority,
+            due_date=t.due_date,
+            project_id=project_id,
+        )
+        if t.tags:
+            task.tags = _get_or_create_tags(t.tags, db)
+        db.add(task)
+        created.append(task)
+    db.commit()
+    for task in created:
+        db.refresh(task)
+    return schemas.TaskBulkCreateResponse(created=created, count=len(created))
+
+
+@router.get("/export", summary="Export tasks as CSV")
+def export_tasks_csv(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Export all tasks in a project to CSV format. Useful for backups or external analysis."""
+    _get_owned_project(project_id, current_user.id, db)
+    tasks = db.query(models.Task).filter(models.Task.project_id == project_id).all()
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow([
+        "id", "title", "description", "status", "priority",
+        "due_date", "tags", "created_at", "updated_at"
+    ])
+    for t in tasks:
+        writer.writerow([
+            t.id,
+            t.title,
+            (t.description or "").replace("\n", " "),
+            t.status.value,
+            t.priority.value,
+            t.due_date.isoformat() if t.due_date else "",
+            ";".join(tag.name for tag in t.tags),
+            t.created_at.isoformat() if t.created_at else "",
+            t.updated_at.isoformat() if t.updated_at else "",
+        ])
+
+    buf.seek(0)
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="tasks_project_{project_id}.csv"'},
+    )
 
 
 @router.get("/{task_id}", response_model=schemas.TaskResponse)

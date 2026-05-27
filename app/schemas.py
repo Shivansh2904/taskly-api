@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from app.models import TaskStatus, TaskPriority
 
 
@@ -94,6 +94,15 @@ class TaskResponse(BaseModel):
     updated_at: datetime
     tags: list[TagResponse] = []
     model_config = {"from_attributes": True}
+
+
+class TaskBulkCreate(BaseModel):
+    tasks: list[TaskCreate] = Field(..., min_length=1, max_length=100)
+
+
+class TaskBulkCreateResponse(BaseModel):
+    created: list[TaskResponse]
+    count: int
 
 
 class PaginatedProjects(BaseModel):

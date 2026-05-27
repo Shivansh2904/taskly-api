@@ -220,3 +220,49 @@ def test_overdue_filter_returns_past_due_tasks(client, auth_headers, project_id)
     items = r.json()
     assert len(items) == 1
     assert items[0]["title"] == "Overdue Task"
+
+
+def test_export_tasks_csv(client, auth_headers):
+    # Create project
+    r = client.post("/projects", json={"name": "Export Project"}, headers=auth_headers)
+    pid = r.json()["id"]
+
+    # Add 2 tasks
+    client.post(f"/projects/{pid}/tasks", json={"title": "T1", "status": "todo", "priority": "low"}, headers=auth_headers)
+    client.post(f"/projects/{pid}/tasks", json={"title": "T2", "status": "done", "priority": "high"}, headers=auth_headers)
+
+    r2 = client.get(f"/projects/{pid}/tasks/export", headers=auth_headers)
+    assert r2.status_code == 200
+    assert "text/csv" in r2.headers["content-type"]
+    assert "attachment" in r2.headers["content-disposition"]
+
+    lines = r2.text.strip().splitlines()
+    assert len(lines) == 3  # header + 2 tasks
+    assert "id,title,description" in lines[0]
+    assert "T1" in lines[1] or "T1" in lines[2]
+
+
+def test_bulk_create_tasks(client, auth_headers):
+    r = client.post("/projects", json={"name": "Bulk Project"}, headers=auth_headers)
+    pid = r.json()["id"]
+
+    body = {
+        "tasks": [
+            {"title": "Task A", "priority": "high"},
+            {"title": "Task B", "status": "in_progress"},
+            {"title": "Task C", "tags": ["urgent"]},
+        ]
+    }
+    r2 = client.post(f"/projects/{pid}/tasks/bulk", json=body, headers=auth_headers)
+    assert r2.status_code == 201
+    assert r2.json()["count"] == 3
+    assert len(r2.json()["created"]) == 3
+
+
+def test_bulk_create_too_many(client, auth_headers):
+    r = client.post("/projects", json={"name": "Bulk Project"}, headers=auth_headers)
+    pid = r.json()["id"]
+
+    body = {"tasks": [{"title": f"Task {i}"} for i in range(101)]}  # over the 100 limit
+    r2 = client.post(f"/projects/{pid}/tasks/bulk", json=body, headers=auth_headers)
+    assert r2.status_code == 422

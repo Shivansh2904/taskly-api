@@ -75,6 +75,8 @@ All task routes require the calling user to own the parent project.
 |--------|------|-------------|
 | `GET` | `/projects/{id}/tasks` | List tasks, filter by `?status=` or `?priority=` |
 | `POST` | `/projects/{id}/tasks` | Create a task with optional tags |
+| `POST` | `/projects/{id}/tasks/bulk` | Create up to 100 tasks in one call |
+| `GET` | `/projects/{id}/tasks/export` | Export all tasks as CSV |
 | `GET` | `/projects/{id}/tasks/{tid}` | Get a task |
 | `PATCH` | `/projects/{id}/tasks/{tid}` | Update title, status, priority, tags |
 | `DELETE` | `/projects/{id}/tasks/{tid}` | Delete a task |
