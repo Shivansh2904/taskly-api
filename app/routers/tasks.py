@@ -17,6 +17,7 @@ def list_tasks(
     status: models.TaskStatus | None = None,
     priority: models.TaskPriority | None = None,
     overdue: bool = False,
+    search: str | None = None,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -31,6 +32,8 @@ def list_tasks(
             models.Task.due_date < datetime.now(UTC),
             models.Task.status != models.TaskStatus.done,
         )
+    if search:
+        q = q.filter(models.Task.title.ilike(f"%{search.strip()}%"))
     return q.all()
 
 

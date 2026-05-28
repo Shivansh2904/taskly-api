@@ -365,3 +365,30 @@ def test_comment_on_missing_task(client, auth_headers, project_id):
         headers=auth_headers,
     )
     assert r.status_code == 404
+
+
+# ── Search ──────────────────────────────────────────────────────────────────────
+
+def test_search_tasks_by_title(client, auth_headers, project_id):
+    for title in ("Fix login bug", "Add login tests", "Write docs"):
+        client.post(_task_url(project_id), json={"title": title}, headers=auth_headers)
+
+    r = client.get(f"{_task_url(project_id)}?search=login", headers=auth_headers)
+    assert r.status_code == 200
+    titles = [t["title"] for t in r.json()]
+    assert len(titles) == 2
+    assert all("login" in t.lower() for t in titles)
+
+
+def test_search_is_case_insensitive(client, auth_headers, project_id):
+    client.post(_task_url(project_id), json={"title": "URGENT cleanup"}, headers=auth_headers)
+    r = client.get(f"{_task_url(project_id)}?search=urgent", headers=auth_headers)
+    assert r.status_code == 200
+    assert len(r.json()) == 1
+
+
+def test_search_no_match_returns_empty(client, auth_headers, project_id):
+    client.post(_task_url(project_id), json={"title": "Something"}, headers=auth_headers)
+    r = client.get(f"{_task_url(project_id)}?search=zzzznomatch", headers=auth_headers)
+    assert r.status_code == 200
+    assert r.json() == []
