@@ -105,6 +105,19 @@ class TaskBulkCreateResponse(BaseModel):
     count: int
 
 
+class CommentCreate(BaseModel):
+    body: str = Field(..., min_length=1, max_length=2000)
+
+
+class CommentResponse(BaseModel):
+    id: int
+    body: str
+    task_id: int
+    author_id: int
+    created_at: datetime
+    model_config = {"from_attributes": True}
+
+
 class PaginatedProjects(BaseModel):
     items: list[ProjectResponse]
     total: int

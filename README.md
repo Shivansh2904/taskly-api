@@ -80,6 +80,11 @@ All task routes require the calling user to own the parent project.
 | `GET` | `/projects/{id}/tasks/{tid}` | Get a task |
 | `PATCH` | `/projects/{id}/tasks/{tid}` | Update title, status, priority, tags |
 | `DELETE` | `/projects/{id}/tasks/{tid}` | Delete a task |
+| `POST` | `/projects/{id}/tasks/{tid}/bulk` | Create up to 100 tasks in one call |
+| `GET` | `/projects/{id}/tasks/export` | Export all tasks as CSV |
+| `GET` | `/projects/{id}/tasks/{tid}/comments` | List comments on a task (oldest first) |
+| `POST` | `/projects/{id}/tasks/{tid}/comments` | Add a comment to a task |
+| `DELETE` | `/projects/{id}/tasks/{tid}/comments/{cid}` | Delete a comment (author only) |
 
 ---
 

@@ -166,6 +166,69 @@ def delete_task(
     db.commit()
 
 
+@router.get("/{task_id}/comments", response_model=list[schemas.CommentResponse])
+def list_comments(
+    project_id: int,
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """List all comments on a task, oldest first."""
+    task = _get_owned_task(task_id, project_id, current_user.id, db)
+    return (
+        db.query(models.Comment)
+        .filter(models.Comment.task_id == task.id)
+        .order_by(models.Comment.created_at)
+        .all()
+    )
+
+
+@router.post(
+    "/{task_id}/comments",
+    response_model=schemas.CommentResponse,
+    status_code=201,
+)
+def create_comment(
+    project_id: int,
+    task_id: int,
+    body: schemas.CommentCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Add a comment to a task."""
+    task = _get_owned_task(task_id, project_id, current_user.id, db)
+    comment = models.Comment(
+        body=body.body, task_id=task.id, author_id=current_user.id
+    )
+    db.add(comment)
+    db.commit()
+    db.refresh(comment)
+    return comment
+
+
+@router.delete("/{task_id}/comments/{comment_id}", status_code=204)
+def delete_comment(
+    project_id: int,
+    task_id: int,
+    comment_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Delete a comment. Only the comment's author may delete it."""
+    task = _get_owned_task(task_id, project_id, current_user.id, db)
+    comment = (
+        db.query(models.Comment)
+        .filter(models.Comment.id == comment_id, models.Comment.task_id == task.id)
+        .first()
+    )
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    if comment.author_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the author can delete this comment")
+    db.delete(comment)
+    db.commit()
+
+
 def _get_owned_task(
     task_id: int, project_id: int, user_id: int, db: Session
 ) -> models.Task:

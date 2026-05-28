@@ -8,6 +8,10 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 ## [Unreleased]
 
 ### Added
+- **Task comments** — `Comment` model with `POST`/`GET`/`DELETE` endpoints under `/projects/{id}/tasks/{tid}/comments`; only a comment's author may delete it (Alembic migration `003_add_comments.py`)
+- `Makefile` with `install`, `dev`, `test`, `migrate`, `docker-up`, `clean` targets
+- Render.com `render.yaml` deploy blueprint (API + free Postgres)
+- GitHub issue and PR templates
 - Weekly Dependabot updates for pip, GitHub Actions, and Docker
 - `CONTRIBUTING.md` with development setup and PR guidelines
 

@@ -266,3 +266,102 @@ def test_bulk_create_too_many(client, auth_headers):
     body = {"tasks": [{"title": f"Task {i}"} for i in range(101)]}  # over the 100 limit
     r2 = client.post(f"/projects/{pid}/tasks/bulk", json=body, headers=auth_headers)
     assert r2.status_code == 422
+
+
+# ── Comments ────────────────────────────────────────────────────────────────────
+
+def _make_task(client, auth_headers, project_id):
+    r = client.post(
+        _task_url(project_id),
+        json={"title": "Task with comments"},
+        headers=auth_headers,
+    )
+    return r.json()["id"]
+
+
+def test_create_comment(client, auth_headers, project_id):
+    task_id = _make_task(client, auth_headers, project_id)
+    r = client.post(
+        f"{_task_url(project_id, task_id)}/comments",
+        json={"body": "First comment"},
+        headers=auth_headers,
+    )
+    assert r.status_code == 201
+    data = r.json()
+    assert data["body"] == "First comment"
+    assert data["task_id"] == task_id
+    assert "author_id" in data
+
+
+def test_list_comments_ordered(client, auth_headers, project_id):
+    task_id = _make_task(client, auth_headers, project_id)
+    for text in ("one", "two", "three"):
+        client.post(
+            f"{_task_url(project_id, task_id)}/comments",
+            json={"body": text},
+            headers=auth_headers,
+        )
+    r = client.get(f"{_task_url(project_id, task_id)}/comments", headers=auth_headers)
+    assert r.status_code == 200
+    bodies = [c["body"] for c in r.json()]
+    assert bodies == ["one", "two", "three"]
+
+
+def test_empty_comment_rejected(client, auth_headers, project_id):
+    task_id = _make_task(client, auth_headers, project_id)
+    r = client.post(
+        f"{_task_url(project_id, task_id)}/comments",
+        json={"body": ""},
+        headers=auth_headers,
+    )
+    assert r.status_code == 422
+
+
+def test_delete_own_comment(client, auth_headers, project_id):
+    task_id = _make_task(client, auth_headers, project_id)
+    r = client.post(
+        f"{_task_url(project_id, task_id)}/comments",
+        json={"body": "delete me"},
+        headers=auth_headers,
+    )
+    cid = r.json()["id"]
+    r2 = client.delete(
+        f"{_task_url(project_id, task_id)}/comments/{cid}", headers=auth_headers
+    )
+    assert r2.status_code == 204
+    remaining = client.get(
+        f"{_task_url(project_id, task_id)}/comments", headers=auth_headers
+    ).json()
+    assert remaining == []
+
+
+def test_cannot_delete_others_comment(client, auth_headers, project_id):
+    # author posts a comment
+    task_id = _make_task(client, auth_headers, project_id)
+    r = client.post(
+        f"{_task_url(project_id, task_id)}/comments",
+        json={"body": "mine"},
+        headers=auth_headers,
+    )
+    cid = r.json()["id"]
+
+    # a different user (who somehow has project access in a shared world) cannot delete it;
+    # here the second user does not own the project, so they get 404 on the task lookup
+    r2 = client.post(
+        "/auth/register",
+        json={"email": "intruder@example.com", "password": "password123"},
+    )
+    intruder = {"Authorization": f"Bearer {r2.json()['access_token']}"}
+    r3 = client.delete(
+        f"{_task_url(project_id, task_id)}/comments/{cid}", headers=intruder
+    )
+    assert r3.status_code == 404
+
+
+def test_comment_on_missing_task(client, auth_headers, project_id):
+    r = client.post(
+        f"{_task_url(project_id, 99999)}/comments",
+        json={"body": "ghost"},
+        headers=auth_headers,
+    )
+    assert r.status_code == 404

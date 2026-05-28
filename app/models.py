@@ -100,6 +100,9 @@ class Task(Base):
     )
     project: Mapped["Project"] = relationship(back_populates="tasks")
     tags: Mapped[list["Tag"]] = relationship(secondary=task_tags, back_populates="tasks")
+    comments: Mapped[list["Comment"]] = relationship(
+        back_populates="task", cascade="all, delete-orphan", order_by="Comment.created_at"
+    )
 
 
 class Tag(Base):
@@ -108,3 +111,17 @@ class Tag(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(50), unique=True, index=True)
     tasks: Mapped[list["Task"]] = relationship(secondary=task_tags, back_populates="tags")
+
+
+class Comment(Base):
+    __tablename__ = "comments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    body: Mapped[str] = mapped_column(Text)
+    task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id", ondelete="CASCADE"))
+    author_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
+    task: Mapped["Task"] = relationship(back_populates="comments")
+    author: Mapped["User"] = relationship()
