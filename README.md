@@ -73,7 +73,7 @@ All task routes require the calling user to own the parent project.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/projects/{id}/tasks` | List tasks, filter by `?status=`, `?priority=`, `?overdue=true`, or `?search=` (title substring) |
+| `GET` | `/projects/{id}/tasks` | List tasks; filter by `?status=`, `?priority=`, `?overdue=true`, `?search=`; sort by `?sort=created_at\|due_date\|title\|priority` + `?order=asc\|desc` |
 | `POST` | `/projects/{id}/tasks` | Create a task with optional tags |
 | `POST` | `/projects/{id}/tasks/bulk` | Create up to 100 tasks in one call |
 | `GET` | `/projects/{id}/tasks/export` | Export all tasks as CSV |

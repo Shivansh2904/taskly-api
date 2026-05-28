@@ -1,14 +1,24 @@
 import csv
 import io
 from datetime import datetime, UTC
+from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
+from sqlalchemy import case
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app import models, schemas
 from app.routers.projects import get_current_user, _get_owned_project
 
 router = APIRouter()
+
+# Rank used when sorting by priority (high first when descending).
+_PRIORITY_RANK = case(
+    (models.Task.priority == models.TaskPriority.low, 1),
+    (models.Task.priority == models.TaskPriority.medium, 2),
+    (models.Task.priority == models.TaskPriority.high, 3),
+    else_=0,
+)
 
 
 @router.get("", response_model=list[schemas.TaskResponse])
@@ -18,6 +28,8 @@ def list_tasks(
     priority: models.TaskPriority | None = None,
     overdue: bool = False,
     search: str | None = None,
+    sort: Literal["created_at", "due_date", "title", "priority"] = "created_at",
+    order: Literal["asc", "desc"] = "asc",
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -34,6 +46,15 @@ def list_tasks(
         )
     if search:
         q = q.filter(models.Task.title.ilike(f"%{search.strip()}%"))
+
+    sort_columns = {
+        "created_at": models.Task.created_at,
+        "due_date": models.Task.due_date,
+        "title": models.Task.title,
+        "priority": _PRIORITY_RANK,
+    }
+    col = sort_columns[sort]
+    q = q.order_by(col.desc() if order == "desc" else col.asc())
     return q.all()
 
 

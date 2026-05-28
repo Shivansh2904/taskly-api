@@ -392,3 +392,33 @@ def test_search_no_match_returns_empty(client, auth_headers, project_id):
     r = client.get(f"{_task_url(project_id)}?search=zzzznomatch", headers=auth_headers)
     assert r.status_code == 200
     assert r.json() == []
+
+
+# ── Sorting ─────────────────────────────────────────────────────────────────────
+
+def test_sort_by_title_asc(client, auth_headers, project_id):
+    for title in ("Charlie", "Alpha", "Bravo"):
+        client.post(_task_url(project_id), json={"title": title}, headers=auth_headers)
+    r = client.get(f"{_task_url(project_id)}?sort=title&order=asc", headers=auth_headers)
+    assert r.status_code == 200
+    assert [t["title"] for t in r.json()] == ["Alpha", "Bravo", "Charlie"]
+
+
+def test_sort_by_title_desc(client, auth_headers, project_id):
+    for title in ("Charlie", "Alpha", "Bravo"):
+        client.post(_task_url(project_id), json={"title": title}, headers=auth_headers)
+    r = client.get(f"{_task_url(project_id)}?sort=title&order=desc", headers=auth_headers)
+    assert [t["title"] for t in r.json()] == ["Charlie", "Bravo", "Alpha"]
+
+
+def test_sort_by_priority_desc_high_first(client, auth_headers, project_id):
+    client.post(_task_url(project_id), json={"title": "L", "priority": "low"}, headers=auth_headers)
+    client.post(_task_url(project_id), json={"title": "H", "priority": "high"}, headers=auth_headers)
+    client.post(_task_url(project_id), json={"title": "M", "priority": "medium"}, headers=auth_headers)
+    r = client.get(f"{_task_url(project_id)}?sort=priority&order=desc", headers=auth_headers)
+    assert [t["priority"] for t in r.json()] == ["high", "medium", "low"]
+
+
+def test_invalid_sort_field_rejected(client, auth_headers, project_id):
+    r = client.get(f"{_task_url(project_id)}?sort=bogus", headers=auth_headers)
+    assert r.status_code == 422

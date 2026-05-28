@@ -8,6 +8,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 ## [Unreleased]
 
 ### Added
+- **Task sorting** — `?sort=created_at|due_date|title|priority` + `?order=asc|desc` on the task list; priority sorts by semantic rank (high > medium > low), not alphabetically
 - **Task search** — `?search=` query param on `GET /projects/{id}/tasks` filters by case-insensitive title substring
 - **Task comments** — `Comment` model with `POST`/`GET`/`DELETE` endpoints under `/projects/{id}/tasks/{tid}/comments`; only a comment's author may delete it (Alembic migration `003_add_comments.py`)
 - `Makefile` with `install`, `dev`, `test`, `migrate`, `docker-up`, `clean` targets
